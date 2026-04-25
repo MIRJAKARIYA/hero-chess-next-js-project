@@ -15,7 +15,7 @@ const PIECES = {
   P: "♙", R: "♖", N: "♘", B: "♗", Q: "♕", K: "♔",
 };
 
-export default function ChessBoard({ game, onMove, playerColor = "w", isDraggable = true }) {
+export default function ChessBoard({ game, onMove, playerColor = null, isDraggable = true }) {
   const [selectedSquare, setSelectedSquare] = useState(null);
   const [validMoves, setValidMoves] = useState([]);
 
@@ -41,7 +41,7 @@ export default function ChessBoard({ game, onMove, playerColor = "w", isDraggabl
       } else {
         // If clicking on an empty square or opponent piece while something is selected
         const piece = game.get(square);
-        if (piece && piece.color === game.turn()) {
+        if (piece && piece.color === game.turn() && (piece.color === playerColor || playerColor === null)) {
           setSelectedSquare(square);
           setValidMoves(game.moves({ square, verbose: true }).map(m => m.to));
         } else {
@@ -59,6 +59,14 @@ export default function ChessBoard({ game, onMove, playerColor = "w", isDraggabl
       // Select a piece
       const piece = game.get(square);
       if (piece) {
+        if (piece.color !== playerColor && playerColor !== null) {
+          toast.error("Not your piece!", {
+            description: "You can only control your own pieces.",
+            position: "bottom-center"
+          });
+          return;
+        }
+
         if (piece.color === game.turn()) {
           setSelectedSquare(square);
           setValidMoves(game.moves({ square, verbose: true }).map(m => m.to));

@@ -2,8 +2,19 @@
 import { useState, useEffect } from "react";
 import { Chess } from "chess.js";
 import ChessBoard from "@/components/ChessBoard";
-import { motion } from "framer-motion";
-import { Cpu, RefreshCw, Trophy, Zap } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Cpu, RefreshCw, Trophy, Zap, ChevronRight, Brain } from "lucide-react";
+import { toast } from "sonner";
+import { clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+function cn(...inputs) {
+  return twMerge(clsx(inputs));
+}
+
+const PIECE_VALUES = {
+  p: 10, n: 30, b: 30, r: 50, q: 90, k: 900,
+};
 
 export default function ComputerPlayPage() {
   const [game, setGame] = useState(new Chess());
@@ -13,44 +24,112 @@ export default function ComputerPlayPage() {
   useEffect(() => {
     if (game.turn() === "b" && !game.isGameOver()) {
       setIsThinking(true);
-      setTimeout(makeComputerMove, 800);
+      setTimeout(makeComputerMove, difficulty === "Hard" ? 1000 : 600);
     }
   }, [game]);
 
+  const evaluateBoard = (chess) => {
+    let totalEvaluation = 0;
+    const board = chess.board();
+    for (let i = 0; i < 8; i++) {
+      for (let j = 0; j < 8; j++) {
+        const piece = board[i][j];
+        if (piece) {
+          const value = PIECE_VALUES[piece.type] || 0;
+          totalEvaluation += (piece.color === "w" ? -value : value);
+        }
+      }
+    }
+    return totalEvaluation;
+  };
+
+  const minimax = (chess, depth, alpha, beta, isMaximizingPlayer) => {
+    if (depth === 0 || chess.isGameOver()) {
+      return evaluateBoard(chess);
+    }
+
+    const moves = chess.moves();
+
+    if (isMaximizingPlayer) {
+      let bestEval = -Infinity;
+      for (const move of moves) {
+        chess.move(move);
+        const evalScore = minimax(chess, depth - 1, alpha, beta, false);
+        chess.undo();
+        bestEval = Math.max(bestEval, evalScore);
+        alpha = Math.max(alpha, evalScore);
+        if (beta <= alpha) break;
+      }
+      return bestEval;
+    } else {
+      let bestEval = Infinity;
+      for (const move of moves) {
+        chess.move(move);
+        const evalScore = minimax(chess, depth - 1, alpha, beta, true);
+        chess.undo();
+        bestEval = Math.min(bestEval, evalScore);
+        beta = Math.min(beta, evalScore);
+        if (beta <= alpha) break;
+      }
+      return bestEval;
+    }
+  };
+
   const makeComputerMove = () => {
     const moves = game.moves();
-    if (moves.length > 0) {
-      // Simple logic: Random for Easy, simple capture priority for Medium
-      let move;
-      if (difficulty === "Easy") {
-        move = moves[Math.floor(Math.random() * moves.length)];
-      } else {
-        // Simple heuristic: try to capture pieces
-        const captures = moves.filter(m => m.includes("x"));
-        move = captures.length > 0 ? captures[Math.floor(Math.random() * captures.length)] : moves[Math.floor(Math.random() * moves.length)];
+    if (moves.length === 0) return;
+
+    let bestMove;
+
+    if (difficulty === "Easy") {
+      bestMove = moves[Math.floor(Math.random() * moves.length)];
+    } else if (difficulty === "Medium") {
+      const captures = moves.filter(m => m.includes("x"));
+      bestMove = captures.length > 0 
+        ? captures[Math.floor(Math.random() * captures.length)] 
+        : moves[Math.floor(Math.random() * moves.length)];
+    } else {
+      // Hard Mode: Minimax Depth 2 (Depth 3 might be slow in JS without worker)
+      let bestValue = -Infinity;
+      const gameCopy = new Chess(game.fen());
+      const shuffledMoves = [...moves].sort(() => Math.random() - 0.5);
+
+      for (const move of shuffledMoves) {
+        gameCopy.move(move);
+        const boardValue = minimax(gameCopy, 2, -Infinity, Infinity, false);
+        gameCopy.undo();
+        if (boardValue > bestValue) {
+          bestValue = boardValue;
+          bestMove = move;
+        }
       }
-      
-      game.move(move);
+    }
+
+    try {
+      game.move(bestMove || moves[0]);
       setGame(new Chess(game.fen()));
+    } catch (e) {
+      console.error("AI Move failed", e);
     }
     setIsThinking(false);
   };
 
   const onMove = (move) => {
     if (game.turn() !== "w") return;
-
     try {
       const result = game.move(move);
-      if (result) {
-        setGame(new Chess(game.fen()));
-      }
-    } catch (e) {
-      console.error("Invalid move", e);
-    }
+      if (result) setGame(new Chess(game.fen()));
+    } catch (e) { console.error(e); }
   };
 
-  const resetGame = () => {
-    setGame(new Chess());
+  const resetGame = () => setGame(new Chess());
+
+  const handleDifficultyChange = (newDifficulty) => {
+    setDifficulty(newDifficulty);
+    toast.success(`Difficulty set to ${newDifficulty}`, {
+      description: `The computer will now play at ${newDifficulty.toLowerCase()} level.`,
+      icon: <Brain size={16} className="text-primary" />,
+    });
   };
 
   return (
@@ -69,43 +148,65 @@ export default function ComputerPlayPage() {
             </div>
           </div>
           
-          <div className="flex gap-4 items-center">
-            <select 
-              value={difficulty}
-              onChange={(e) => setDifficulty(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm font-bold focus:outline-none"
-            >
-              <option value="Easy">Easy</option>
-              <option value="Medium">Medium</option>
-            </select>
-            <button onClick={resetGame} className="p-3 glass rounded-xl hover:bg-white/10 transition-colors text-primary">
-              <RefreshCw size={20} />
-            </button>
+          <div className="flex gap-2 p-1 bg-white/5 rounded-2xl border border-white/5">
+            {["Easy", "Medium", "Hard"].map((level) => (
+              <button
+                key={level}
+                onClick={() => handleDifficultyChange(level)}
+                className={cn(
+                  "px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300",
+                  difficulty === level 
+                    ? "bg-primary text-white shadow-lg shadow-primary/20 scale-105" 
+                    : "text-foreground/40 hover:text-foreground hover:bg-white/5"
+                )}
+              >
+                {level}
+              </button>
+            ))}
           </div>
+          
+          <button onClick={resetGame} className="p-3 glass rounded-xl hover:bg-white/10 transition-colors text-primary">
+            <RefreshCw size={20} />
+          </button>
         </div>
 
         <div className="relative">
           <ChessBoard game={game} onMove={onMove} playerColor="w" />
           
-          {isThinking && (
-            <div className="absolute top-4 right-4 bg-primary/90 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 animate-pulse shadow-lg">
-              <Zap size={14} className="animate-bounce" />
-              Thinking...
-            </div>
-          )}
+          <AnimatePresence>
+            {isThinking && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.8, y: 10 }}
+                className="absolute top-4 right-4 bg-primary/90 backdrop-blur-md text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-3 shadow-2xl z-30"
+              >
+                <div className="flex gap-1">
+                  <span className="w-1.5 h-1.5 bg-white rounded-full animate-bounce [animation-delay:-0.3s]" />
+                  <span className="w-1.5 h-1.5 bg-white rounded-full animate-bounce [animation-delay:-0.15s]" />
+                  <span className="w-1.5 h-1.5 bg-white rounded-full animate-bounce" />
+                </div>
+                Thinking...
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         <div className="flex justify-between items-center glass p-6 rounded-3xl border border-white/10">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center font-bold text-xl">U</div>
+            <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center font-bold text-xl border border-white/10 shadow-lg">
+              Y
+            </div>
             <div>
               <p className="font-bold text-lg">You</p>
-              <p className="text-xs text-foreground/40 font-medium">White Pieces</p>
+              <p className="text-xs text-foreground/40 font-medium tracking-wide">White Pieces</p>
             </div>
           </div>
           <div className="text-right">
             <p className="text-xs font-bold text-foreground/30 uppercase mb-1">Status</p>
-            <p className="font-bold text-green-500">Your Turn</p>
+            <p className={cn("font-bold transition-colors", game.turn() === "w" ? "text-green-500" : "text-foreground/20")}>
+              {game.turn() === "w" ? "Your Turn" : "Thinking..."}
+            </p>
           </div>
         </div>
 
