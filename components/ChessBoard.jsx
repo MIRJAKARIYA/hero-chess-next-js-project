@@ -78,7 +78,10 @@ export default function ChessBoard({ game, onMove, playerColor = "w", isDraggabl
   };
 
   return (
-    <div className="grid grid-cols-8 w-full max-w-[600px] aspect-square rounded-xl overflow-hidden shadow-2xl border-4 border-border/50">
+    <div 
+      className="grid grid-cols-8 w-full max-w-[600px] aspect-square rounded-xl overflow-hidden shadow-2xl border-4 border-border/50"
+      style={{ gridTemplateRows: "repeat(8, 1fr)" }}
+    >
       {board.map((row, rowIndex) => (
         row.map((cell, colIndex) => {
           const square = getSquareName(rowIndex, colIndex);
@@ -92,24 +95,25 @@ export default function ChessBoard({ game, onMove, playerColor = "w", isDraggabl
               key={square}
               onClick={() => handleSquareClick(square)}
               className={cn(
-                "relative flex items-center justify-center text-4xl cursor-pointer select-none transition-colors duration-200",
+                "relative flex aspect-square items-center justify-center text-4xl cursor-pointer select-none transition-all duration-200",
                 isDark ? "bg-[#2d2d2d]" : "bg-[#3d3d3d]",
-                isSelected && "bg-primary/40",
-                isValidTarget && "after:content-[''] after:w-4 after:h-4 after:bg-accent/40 after:rounded-full after:absolute"
+                isSelected && "bg-primary/40 shadow-inner shadow-primary/20",
+                isValidTarget && "after:content-[''] after:w-4 after:h-4 after:bg-accent/40 after:rounded-full after:absolute z-20"
               )}
             >
               {piece && (
-                <motion.span
-                  layoutId={square}
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  className={cn(
-                    "z-10",
-                    piece.color === "w" ? "text-white drop-shadow-md" : "text-gray-400 drop-shadow-md"
-                  )}
-                >
-                  {PIECES[piece.color === "w" ? piece.type.toUpperCase() : piece.type.toLowerCase()]}
-                </motion.span>
+                <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                  <motion.span
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className={cn(
+                      "drop-shadow-lg",
+                      piece.color === "w" ? "text-white" : "text-gray-400"
+                    )}
+                  >
+                    {PIECES[piece.color === "w" ? piece.type.toUpperCase() : piece.type.toLowerCase()]}
+                  </motion.span>
+                </div>
               )}
               
               {/* Coordinates for edge squares */}
