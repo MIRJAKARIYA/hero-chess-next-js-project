@@ -101,38 +101,38 @@ export default function OnlineGamePage({ params }) {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col lg:flex-row p-4 md:p-8 gap-8">
+    <div className="h-screen bg-background flex flex-col lg:flex-row p-4 md:p-6 gap-6 overflow-hidden">
       {/* Game Section */}
-      <div className="flex-1 flex flex-col items-center justify-center gap-8">
-        <div className="w-full max-w-[600px] flex justify-between items-center glass p-4 rounded-2xl border border-white/10">
+      <div className="flex-1 flex flex-col items-center justify-center gap-4">
+        <div className="w-full max-w-[800px] flex justify-between items-center glass p-3 rounded-xl border border-white/10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center font-bold">O</div>
+            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center font-bold text-xs">O</div>
             <div>
-              <p className="font-bold">{opponent?.name || "Waiting for opponent..."}</p>
-              <p className="text-xs text-foreground/40">Rating: 1500</p>
+              <p className="font-bold text-sm">{opponent?.name || "Waiting..."}</p>
+              <p className="text-[10px] text-foreground/40">Rating: 1500</p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-sm font-bold text-foreground/30 uppercase">Time</p>
-            <p className="text-xl font-mono">10:00</p>
+            <p className="text-[10px] font-bold text-foreground/30 uppercase">Time</p>
+            <p className="text-lg font-mono">10:00</p>
           </div>
         </div>
 
         <ChessBoard game={game} onMove={onMove} playerColor={playerColor} />
 
-        <div className="w-full max-w-[600px] flex justify-between items-center glass p-4 rounded-2xl border border-white/10">
+        <div className="w-full max-w-[800px] flex justify-between items-center glass p-3 rounded-xl border border-white/10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center font-bold text-xs">
               {session?.user?.name?.[0] || "Y"}
             </div>
             <div>
-              <p className="font-bold">{session?.user?.name || "You"}</p>
-              <p className="text-xs text-foreground/40">Rating: 1450</p>
+              <p className="font-bold text-sm">{session?.user?.name || "You"}</p>
+              <p className="text-[10px] text-foreground/40">Rating: 1450</p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-sm font-bold text-foreground/30 uppercase">Time</p>
-            <p className="text-xl font-mono">08:45</p>
+            <p className="text-[10px] font-bold text-foreground/30 uppercase">Time</p>
+            <p className="text-lg font-mono">08:45</p>
           </div>
         </div>
       </div>

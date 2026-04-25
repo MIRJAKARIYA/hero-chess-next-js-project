@@ -54,11 +54,11 @@ export default function ComputerPlayPage() {
   };
 
   return (
-    <div className="min-h-screen p-8 flex flex-col items-center justify-center gap-12 bg-background relative overflow-hidden">
+    <div className="h-screen p-4 md:p-6 flex flex-col items-center justify-center gap-6 bg-background relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-accent to-secondary" />
 
-      <div className="flex flex-col gap-6 w-full max-w-[600px] z-10">
-        <div className="flex justify-between items-center glass p-6 rounded-3xl border border-white/10 shadow-xl">
+      <div className="flex flex-col gap-4 w-full max-w-[800px] z-10">
+        <div className="flex justify-between items-center glass p-4 rounded-3xl border border-white/10 shadow-xl">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-accent/20 rounded-2xl">
               <Cpu size={24} className="text-accent" />

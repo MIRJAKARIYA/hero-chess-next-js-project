@@ -79,7 +79,7 @@ export default function ChessBoard({ game, onMove, playerColor = "w", isDraggabl
 
   return (
     <div 
-      className="grid grid-cols-8 w-full max-w-[600px] aspect-square rounded-xl overflow-hidden shadow-2xl border-4 border-border/50"
+      className="grid grid-cols-8 w-full max-w-[min(90vw,75vh,800px)] aspect-square rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] border-8 border-slate-800"
       style={{ gridTemplateRows: "repeat(8, 1fr)" }}
     >
       {board.map((row, rowIndex) => (
@@ -95,10 +95,10 @@ export default function ChessBoard({ game, onMove, playerColor = "w", isDraggabl
               key={square}
               onClick={() => handleSquareClick(square)}
               className={cn(
-                "relative flex aspect-square items-center justify-center text-4xl cursor-pointer select-none transition-all duration-200",
-                isDark ? "bg-[#2d2d2d]" : "bg-[#3d3d3d]",
-                isSelected && "bg-primary/40 shadow-inner shadow-primary/20",
-                isValidTarget && "after:content-[''] after:w-4 after:h-4 after:bg-accent/40 after:rounded-full after:absolute z-20"
+                "relative flex aspect-square items-center justify-center text-4xl md:text-5xl cursor-pointer select-none transition-all duration-300",
+                isDark ? "bg-[#334155]" : "bg-[#94a3b8]",
+                isSelected && "bg-primary/60 shadow-inner ring-4 ring-primary/20",
+                isValidTarget && "after:content-[''] after:w-5 after:h-5 after:bg-accent/60 after:rounded-full after:absolute z-20 after:shadow-[0_0_15px_rgba(248,201,77,0.5)]"
               )}
             >
               {piece && (
@@ -107,9 +107,14 @@ export default function ChessBoard({ game, onMove, playerColor = "w", isDraggabl
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     className={cn(
-                      "drop-shadow-lg",
-                      piece.color === "w" ? "text-white" : "text-gray-400"
+                      "drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]",
+                      piece.color === "w" ? "text-amber-50" : "text-slate-900 drop-shadow-[0_0_10px_rgba(157,80,187,0.5)]"
                     )}
+                    style={{ 
+                      filter: piece.color === 'w' 
+                        ? 'drop-shadow(0 0 2px #fff) drop-shadow(0 0 10px rgba(255,255,255,0.5))' 
+                        : 'drop-shadow(0 0 2px #9d50bb) drop-shadow(0 0 10px rgba(157,80,187,0.5))'
+                    }}
                   >
                     {PIECES[piece.color === "w" ? piece.type.toUpperCase() : piece.type.toLowerCase()]}
                   </motion.span>
@@ -118,12 +123,12 @@ export default function ChessBoard({ game, onMove, playerColor = "w", isDraggabl
               
               {/* Coordinates for edge squares */}
               {colIndex === 0 && (
-                <span className="absolute top-1 left-1 text-[10px] text-foreground/30 font-bold">
+                <span className="absolute top-1 left-1 text-[12px] text-white/50 font-black">
                   {8 - rowIndex}
                 </span>
               )}
               {rowIndex === 7 && (
-                <span className="absolute bottom-1 right-1 text-[10px] text-foreground/30 font-bold uppercase">
+                <span className="absolute bottom-1 right-1 text-[12px] text-white/50 font-black uppercase">
                   {"abcdefgh"[colIndex]}
                 </span>
               )}

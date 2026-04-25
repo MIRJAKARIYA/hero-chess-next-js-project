@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Trophy, Swords, History, Settings, LogOut, Plus, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { nanoid } from "nanoid";
 
 export default function DashboardPage() {
   const { data: session, isPending } = authClient.useSession();
@@ -61,7 +62,7 @@ export default function DashboardPage() {
             <button onClick={handleLogout} className="px-6 py-3 glass rounded-2xl font-bold flex items-center gap-2 hover:bg-red-500/10 hover:text-red-500 transition-colors">
               <LogOut size={18} /> Logout
             </button>
-            <Link href="/play/online/new">
+            <Link href="/play/online">
               <button className="px-8 py-3 bg-primary text-white rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-primary/20">
                 <Plus size={18} /> New Online Game
               </button>
@@ -134,6 +135,7 @@ export default function DashboardPage() {
                         {player.status}
                       </span>
                       <button 
+                        onClick={() => router.push(`/play/online/${nanoid(10)}`)}
                         disabled={player.status !== "Online"}
                         className="px-6 py-2 bg-primary text-white text-sm font-bold rounded-xl disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-primary/10"
                       >
