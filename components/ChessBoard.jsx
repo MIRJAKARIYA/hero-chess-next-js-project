@@ -20,6 +20,10 @@ export default function ChessBoard({ game, onMove, playerColor = null, isDraggab
   const [validMoves, setValidMoves] = useState([]);
 
   const board = game.board();
+  
+  const displayBoard = playerColor === "b" 
+    ? [...board].reverse().map(row => [...row].reverse())
+    : board;
 
   const handleSquareClick = (square) => {
     if (!isDraggable) return;
@@ -80,9 +84,9 @@ export default function ChessBoard({ game, onMove, playerColor = null, isDraggab
     }
   };
 
-  const getSquareName = (row, col) => {
+  const getSquareName = (actualRow, actualCol) => {
     const files = "abcdefgh";
-    return `${files[col]}${8 - row}`;
+    return `${files[actualCol]}${8 - actualRow}`;
   };
 
   return (
@@ -90,10 +94,12 @@ export default function ChessBoard({ game, onMove, playerColor = null, isDraggab
       className="grid grid-cols-8 w-full max-w-[min(90vw,75vh,800px)] aspect-square rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] border-8 border-slate-800"
       style={{ gridTemplateRows: "repeat(8, 1fr)" }}
     >
-      {board.map((row, rowIndex) => (
+      {displayBoard.map((row, rowIndex) => (
         row.map((cell, colIndex) => {
-          const square = getSquareName(rowIndex, colIndex);
-          const isDark = (rowIndex + colIndex) % 2 === 1;
+          const actualRow = playerColor === "b" ? 7 - rowIndex : rowIndex;
+          const actualCol = playerColor === "b" ? 7 - colIndex : colIndex;
+          const square = getSquareName(actualRow, actualCol);
+          const isDark = (actualRow + actualCol) % 2 === 1;
           const isSelected = selectedSquare === square;
           const isValidTarget = validMoves.includes(square);
           const piece = cell;
@@ -132,12 +138,12 @@ export default function ChessBoard({ game, onMove, playerColor = null, isDraggab
               {/* Coordinates for edge squares */}
               {colIndex === 0 && (
                 <span className="absolute top-1 left-1 text-[12px] text-white/50 font-black">
-                  {8 - rowIndex}
+                  {8 - actualRow}
                 </span>
               )}
               {rowIndex === 7 && (
                 <span className="absolute bottom-1 right-1 text-[12px] text-white/50 font-black uppercase">
-                  {"abcdefgh"[colIndex]}
+                  {"abcdefgh"[actualCol]}
                 </span>
               )}
             </div>

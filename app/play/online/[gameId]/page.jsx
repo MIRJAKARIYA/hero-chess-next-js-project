@@ -31,6 +31,44 @@ export default function OnlineGamePage({ params }) {
   const processedMessageIds = useRef(new Set());
   const resultSavedRef = useRef(false);
 
+  const [abandonedByOpponent, setAbandonedByOpponent] = useState(false);
+  const [forfeitedByOpponent, setForfeitedByOpponent] = useState(false);
+  const gameRef = useRef(game);
+  const playerColorRef = useRef(playerColor);
+  const opponentRef = useRef(opponent);
+  const abandonedRef = useRef(false);
+
+  useEffect(() => {
+    gameRef.current = game;
+    playerColorRef.current = playerColor;
+    opponentRef.current = opponent;
+    abandonedRef.current = abandonedByOpponent;
+  }, [game, playerColor, opponent, abandonedByOpponent]);
+
+  // Reset own status to Online (called on game-over and unmount)
+  const resetStatusToOnline = useCallback(() => {
+    fetch("/api/user/heartbeat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "Online" }),
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (gameRef.current && !gameRef.current.isGameOver() && !abandonedRef.current && playerColorRef.current && playerColorRef.current !== "spectator" && !resultSavedRef.current) {
+        const payload = JSON.stringify({ 
+          gameId,
+          opponentName: opponentRef.current?.name || "Anonymous",
+          type: "online" 
+        });
+        navigator.sendBeacon("/api/game/abandon", new Blob([payload], { type: "application/json" }));
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [gameId]);
+
   useEffect(() => {
     if (!gameId || !session || !pusherClient) return;
 
@@ -82,8 +120,55 @@ export default function OnlineGamePage({ params }) {
       });
     });
 
+    channel.bind("player-abandoned", (data) => {
+      setAbandonedByOpponent(true);
+      toast.info(`${data.name} left the match. Game abandoned.`);
+      resetStatusToOnline();
+    });
+
+    channel.bind("player-forfeited", (data) => {
+      setForfeitedByOpponent(true);
+      toast.success(`${data.name} forfeited the match. You win!`);
+      
+      if (!resultSavedRef.current && playerColorRef.current && playerColorRef.current !== "spectator") {
+        resultSavedRef.current = true;
+        fetch("/api/game/save-result", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            opponentName: opponentRef.current?.name || "Anonymous",
+            result: "Won",
+            type: "online",
+          }),
+        })
+          .then(() => setResultSaved(true))
+          .catch((e) => console.error("Failed to save win result", e));
+          
+        resetStatusToOnline();
+      }
+    });
+
     return () => {
       pusherClient.unsubscribe(`game-${gameId}`);
+      
+      if (gameRef.current && !gameRef.current.isGameOver() && !abandonedRef.current && playerColorRef.current && playerColorRef.current !== "spectator" && !resultSavedRef.current) {
+        // We forfeit
+        const payload = JSON.stringify({ 
+          gameId,
+          opponentName: opponentRef.current?.name || "Anonymous",
+          type: "online" 
+        });
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon("/api/game/abandon", new Blob([payload], { type: "application/json" }));
+        } else {
+          fetch("/api/game/abandon", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: payload,
+          }).catch(() => {});
+        }
+      }
+
       // Reset own status to Online when leaving the game room
       fetch("/api/user/heartbeat", {
         method: "POST",
@@ -91,16 +176,7 @@ export default function OnlineGamePage({ params }) {
         body: JSON.stringify({ status: "Online" }),
       }).catch(() => {});
     };
-  }, [gameId, session]);
-
-  // Reset own status to Online (called on game-over and unmount)
-  const resetStatusToOnline = useCallback(() => {
-    fetch("/api/user/heartbeat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "Online" }),
-    }).catch(() => {});
-  }, []);
+  }, [gameId, session, resetStatusToOnline]);
 
   useEffect(() => {
     if (game.isGameOver() && !resultSavedRef.current && playerColor && playerColor !== "spectator") {
@@ -159,6 +235,32 @@ export default function OnlineGamePage({ params }) {
       }
     } catch (e) {
       console.error("Invalid move", e);
+    }
+  };
+
+  const handleForfeit = async () => {
+    if (!gameId || !session || resultSavedRef.current) return;
+    
+    // Mark result saved so we don't try to send abandon beacon
+    resultSavedRef.current = true;
+    
+    try {
+      await fetch("/api/game/forfeit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          gameId,
+          opponentName: opponent?.name || "Anonymous",
+          type: "online",
+        }),
+      });
+      
+      resetStatusToOnline();
+      toast.error("You forfeited the game.");
+      window.location.href = "/play/online";
+    } catch (e) {
+      console.error("Failed to forfeit", e);
+      resultSavedRef.current = false;
     }
   };
 
@@ -250,15 +352,25 @@ export default function OnlineGamePage({ params }) {
               </p>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-[10px] font-bold text-foreground/30 uppercase mb-1">Status</p>
-            <p className={cn("font-bold", game.turn() === playerColor ? "text-green-500" : "text-foreground/40")}>
-              {game.turn() === playerColor ? "Your Turn" : "Wait..."}
-            </p>
+          <div className="text-right flex flex-col items-end gap-2">
+            <div>
+              <p className="text-[10px] font-bold text-foreground/30 uppercase mb-1">Status</p>
+              <p className={cn("font-bold", game.turn() === playerColor ? "text-green-500" : "text-foreground/40")}>
+                {game.turn() === playerColor ? "Your Turn" : "Wait..."}
+              </p>
+            </div>
+            {playerColor && playerColor !== "spectator" && !game.isGameOver() && !abandonedByOpponent && !forfeitedByOpponent && (
+              <button 
+                onClick={handleForfeit}
+                className="px-3 py-1 bg-red-500/20 text-red-500 text-xs font-bold rounded-lg hover:bg-red-500/40 transition-colors"
+              >
+                Forfeit
+              </button>
+            )}
           </div>
         </div>
 
-        {game.isGameOver() && (
+        {(game.isGameOver() || abandonedByOpponent || forfeitedByOpponent) && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -267,12 +379,16 @@ export default function OnlineGamePage({ params }) {
             <div className="bg-card p-12 rounded-[40px] border border-primary/30 text-center shadow-[0_0_50px_rgba(157,80,187,0.2)] max-w-sm w-full">
               <Trophy size={80} className="mx-auto mb-8 text-accent animate-bounce" />
               <h2 className="text-5xl font-black mb-4 tracking-tighter">
-                {game.isCheckmate() ? "Checkmate!" : "Draw!"}
+                {abandonedByOpponent ? "Abandoned" : (forfeitedByOpponent ? "Victory!" : (game.isCheckmate() ? "Checkmate!" : "Draw!"))}
               </h2>
               <p className="text-xl text-foreground/60 mb-10">
-                {game.isCheckmate() 
-                  ? (game.turn() === playerColor ? "Opponent Won" : "You Won!") 
-                  : "Good game!"}
+                {abandonedByOpponent 
+                  ? "Opponent left the match. No winner." 
+                  : (forfeitedByOpponent 
+                    ? "Opponent forfeited the game!" 
+                    : (game.isCheckmate() 
+                      ? (game.turn() === playerColor ? "Opponent Won" : "You Won!") 
+                      : "Good game!"))}
               </p>
               <Link href="/play/online" className="block w-full">
                 <button 

@@ -33,7 +33,11 @@ export async function POST(req) {
       targetUserId,
     });
     if (existingChallenge) {
-      return NextResponse.json({ error: "Challenge already sent" }, { status: 400 });
+      if (new Date() > new Date(existingChallenge.expiresAt)) {
+        await db.collection("pending_challenges").deleteOne({ _id: existingChallenge._id });
+      } else {
+        return NextResponse.json({ error: "Challenge already sent" }, { status: 400 });
+      }
     }
 
     // Generate one authoritative gameId and persist the pending challenge

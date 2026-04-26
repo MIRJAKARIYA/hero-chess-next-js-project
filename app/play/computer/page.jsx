@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Chess } from "chess.js";
 import ChessBoard from "@/components/ChessBoard";
 import { motion, AnimatePresence } from "framer-motion";
@@ -22,6 +22,48 @@ export default function ComputerPlayPage() {
   const [isThinking, setIsThinking] = useState(false);
 
   const [resultSaved, setResultSaved] = useState(false);
+
+  const gameRef = useRef(game);
+  const resultSavedRef = useRef(resultSaved);
+
+  useEffect(() => {
+    gameRef.current = game;
+    resultSavedRef.current = resultSaved;
+  }, [game, resultSaved]);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (gameRef.current && !gameRef.current.isGameOver() && !resultSavedRef.current && gameRef.current.history().length > 0) {
+        const payload = JSON.stringify({ 
+          opponentName: `Stockfish (${difficulty})`,
+          result: "Lost",
+          type: "computer" 
+        });
+        navigator.sendBeacon("/api/game/save-result", new Blob([payload], { type: "application/json" }));
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      if (gameRef.current && !gameRef.current.isGameOver() && !resultSavedRef.current && gameRef.current.history().length > 0) {
+        const payload = JSON.stringify({ 
+          opponentName: `Stockfish (${difficulty})`,
+          result: "Lost",
+          type: "computer" 
+        });
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon("/api/game/save-result", new Blob([payload], { type: "application/json" }));
+        } else {
+          fetch("/api/game/save-result", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: payload,
+          }).catch(() => {});
+        }
+      }
+    };
+  }, [difficulty]);
 
   useEffect(() => {
     if (game.turn() === "b" && !game.isGameOver()) {
