@@ -1,6 +1,7 @@
 import { Toaster } from "sonner";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import ClientProviders from "@/components/ClientProviders";
 
 export const metadata = {
   title: "Hero Chess | The Premium Arena",
@@ -12,9 +13,11 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className="antialiased">
         <Navbar />
-        <main className="pt-20">
-          {children}
-        </main>
+        <ClientProviders>
+          <main className="pt-20">
+            {children}
+          </main>
+        </ClientProviders>
         <Toaster richColors position="bottom-center" />
       </body>
     </html>

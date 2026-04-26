@@ -5,7 +5,8 @@ import ChessBoard from "@/components/ChessBoard";
 import { pusherClient } from "@/lib/pusher-client";
 import { authClient } from "@/lib/auth-client";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Smile, Image as ImageIcon, MessageSquare, Users, Loader2 } from "lucide-react";
+import { Send, Smile, Image as ImageIcon, MessageSquare, Users, Loader2, Trophy } from "lucide-react";
+import Link from "next/link";
 import { use } from "react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -24,11 +25,12 @@ export default function OnlineGamePage({ params }) {
   const [playerColor, setPlayerColor] = useState(null); 
   const [opponent, setOpponent] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [resultSaved, setResultSaved] = useState(false);
   const chatEndRef = useRef(null);
   const processedMessageIds = useRef(new Set());
 
   useEffect(() => {
-    if (!gameId || !session) return;
+    if (!gameId || !session || !pusherClient) return;
 
     const joinGame = async () => {
       try {
@@ -43,6 +45,7 @@ export default function OnlineGamePage({ params }) {
         });
         const data = await res.json();
         setPlayerColor(data.color);
+        if (data.opponent) setOpponent(data.opponent);
         setLoading(false);
       } catch (e) {
         console.error("Failed to init game", e);
@@ -58,7 +61,6 @@ export default function OnlineGamePage({ params }) {
     });
 
     channel.bind("chat", (data) => {
-      // Prevent duplicate messages using a unique ID if provided, or simple content+timestamp check
       const msgKey = `${data.sender}-${data.message}-${data.timestamp || Date.now()}`;
       if (!processedMessageIds.current.has(msgKey)) {
         processedMessageIds.current.add(msgKey);
@@ -75,6 +77,34 @@ export default function OnlineGamePage({ params }) {
       pusherClient.unsubscribe(`game-${gameId}`);
     };
   }, [gameId, session]);
+
+  useEffect(() => {
+    if (game.isGameOver() && !resultSaved && playerColor !== "spectator") {
+      saveResult();
+    }
+  }, [game]);
+
+  const saveResult = async () => {
+    let result = "Draw";
+    if (game.isCheckmate()) {
+      result = game.turn() === playerColor ? "Lost" : "Won";
+    }
+
+    try {
+      await fetch("/api/game/save-result", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          opponentName: opponent?.name || "Anonymous",
+          result,
+          type: "online"
+        }),
+      });
+      setResultSaved(true);
+    } catch (e) {
+      console.error("Failed to save result", e);
+    }
+  };
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -205,6 +235,33 @@ export default function OnlineGamePage({ params }) {
             </p>
           </div>
         </div>
+
+        {game.isGameOver() && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 backdrop-blur-lg p-4"
+          >
+            <div className="bg-card p-12 rounded-[40px] border border-primary/30 text-center shadow-[0_0_50px_rgba(157,80,187,0.2)] max-w-sm w-full">
+              <Trophy size={80} className="mx-auto mb-8 text-accent animate-bounce" />
+              <h2 className="text-5xl font-black mb-4 tracking-tighter">
+                {game.isCheckmate() ? "Checkmate!" : "Draw!"}
+              </h2>
+              <p className="text-xl text-foreground/60 mb-10">
+                {game.isCheckmate() 
+                  ? (game.turn() === playerColor ? "Opponent Won" : "You Won!") 
+                  : "Good game!"}
+              </p>
+              <Link href="/play/online" className="block w-full">
+                <button 
+                  className="w-full py-5 bg-primary text-white rounded-3xl font-black text-xl shadow-xl shadow-primary/30 hover:scale-105 transition-transform"
+                >
+                  Back to Lobby
+                </button>
+              </Link>
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {/* Sidebar Section */}

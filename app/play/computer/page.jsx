@@ -21,12 +21,40 @@ export default function ComputerPlayPage() {
   const [difficulty, setDifficulty] = useState("Easy");
   const [isThinking, setIsThinking] = useState(false);
 
+  const [resultSaved, setResultSaved] = useState(false);
+
   useEffect(() => {
     if (game.turn() === "b" && !game.isGameOver()) {
       setIsThinking(true);
       setTimeout(makeComputerMove, difficulty === "Hard" ? 1000 : 600);
     }
+
+    if (game.isGameOver() && !resultSaved) {
+      saveResult();
+    }
   }, [game]);
+
+  const saveResult = async () => {
+    let result = "Draw";
+    if (game.isCheckmate()) {
+      result = game.turn() === "b" ? "Won" : "Lost";
+    }
+
+    try {
+      await fetch("/api/game/save-result", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          opponentName: `Stockfish (${difficulty})`,
+          result,
+          type: "computer"
+        }),
+      });
+      setResultSaved(true);
+    } catch (e) {
+      console.error("Failed to save computer game result", e);
+    }
+  };
 
   const evaluateBoard = (chess) => {
     let totalEvaluation = 0;
@@ -122,7 +150,10 @@ export default function ComputerPlayPage() {
     } catch (e) { console.error(e); }
   };
 
-  const resetGame = () => setGame(new Chess());
+  const resetGame = () => {
+    setGame(new Chess());
+    setResultSaved(false);
+  };
 
   const handleDifficultyChange = (newDifficulty) => {
     setDifficulty(newDifficulty);

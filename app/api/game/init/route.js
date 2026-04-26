@@ -1,11 +1,10 @@
 import { pusherServer } from "@/lib/pusher-server";
-import { MongoClient } from "mongodb";
+import clientPromise from "@/lib/mongodb";
 
 export async function POST(req) {
   const { gameId, userId, userName } = await req.json();
 
-  const client = new MongoClient(process.env.MONGODB_URI);
-  await client.connect();
+  const client = await clientPromise;
   const db = client.db();
 
   // Find or create game
@@ -23,8 +22,8 @@ export async function POST(req) {
     return Response.json({ color: "w" });
   } else {
     // Game exists
-    if (game.white.id === userId) return Response.json({ color: "w" });
-    if (game.black && game.black.id === userId) return Response.json({ color: "b" });
+    if (game.white.id === userId) return Response.json({ color: "w", opponent: game.black });
+    if (game.black && game.black.id === userId) return Response.json({ color: "b", opponent: game.white });
     
     if (!game.black) {
       // Second player is Black
@@ -39,10 +38,10 @@ export async function POST(req) {
         color: "b"
       });
       
-      return Response.json({ color: "b" });
+      return Response.json({ color: "b", opponent: game.white });
     }
     
     // Spectator
-    return Response.json({ color: "spectator" });
+    return Response.json({ color: "spectator", opponent: game.white });
   }
 }

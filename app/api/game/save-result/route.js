@@ -1,8 +1,7 @@
-import { pusherServer } from "@/lib/pusher-server";
 import { auth } from "@/lib/auth";
+import { saveGameResult } from "@/lib/db-actions";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
-import { nanoid } from "nanoid";
 
 export async function POST(req) {
   try {
@@ -14,18 +13,18 @@ export async function POST(req) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { challengerId } = await req.json();
-    const gameId = nanoid();
-
-    // Notify challenger that challenge was accepted
-    await pusherServer.trigger(`user-${challengerId}`, "challenge-accepted", {
-      gameId,
-      opponentName: session.user.name,
+    const { opponentName, result, type } = await req.json();
+    
+    await saveGameResult({
+      userId: session.user.id,
+      opponentName,
+      result,
+      type // 'computer' or 'online'
     });
 
-    return NextResponse.json({ success: true, gameId });
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Accept error:", error);
+    console.error("Save result error:", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
