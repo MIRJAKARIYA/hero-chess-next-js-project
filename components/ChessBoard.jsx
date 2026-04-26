@@ -15,7 +15,7 @@ const PIECES = {
   P: "♙", R: "♖", N: "♘", B: "♗", Q: "♕", K: "♔",
 };
 
-export default function ChessBoard({ game, onMove, playerColor = null, isDraggable = true }) {
+export default function ChessBoard({ game, onMove, playerColor = null, isDraggable = true, maxHeightClass = "max-w-[min(90vw,75vh,800px)]" }) {
   const [selectedSquare, setSelectedSquare] = useState(null);
   const [validMoves, setValidMoves] = useState([]);
 
@@ -91,7 +91,7 @@ export default function ChessBoard({ game, onMove, playerColor = null, isDraggab
 
   return (
     <div 
-      className="grid grid-cols-8 shrink-0 w-full max-w-[min(90vw,60vh,800px)] aspect-square rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] border-8 border-slate-800"
+      className={cn("grid grid-cols-8 shrink-0 w-full aspect-square rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)] border-8 border-slate-800", maxHeightClass)}
       style={{ gridTemplateRows: "repeat(8, 1fr)" }}
     >
       {displayBoard.map((row, rowIndex) => (

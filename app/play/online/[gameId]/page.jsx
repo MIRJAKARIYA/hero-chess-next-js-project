@@ -334,7 +334,7 @@ export default function OnlineGamePage({ params }) {
           </div>
         </div>
 
-        <ChessBoard game={game} onMove={onMove} playerColor={playerColor} />
+        <ChessBoard game={game} onMove={onMove} playerColor={playerColor} maxHeightClass="max-w-[min(90vw,60vh,800px)]" />
 
         {/* User Info */}
         <div className={cn(
