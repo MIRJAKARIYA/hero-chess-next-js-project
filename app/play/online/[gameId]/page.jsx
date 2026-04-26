@@ -1,11 +1,11 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Chess } from "chess.js";
 import ChessBoard from "@/components/ChessBoard";
 import { pusherClient } from "@/lib/pusher-client";
 import { authClient } from "@/lib/auth-client";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Smile, Image as ImageIcon, MessageSquare, Users, Loader2, Trophy } from "lucide-react";
+import { Send, Smile, MessageSquare, Users, Loader2, Trophy, WifiOff } from "lucide-react";
 import Link from "next/link";
 import { use } from "react";
 import { clsx } from "clsx";
@@ -26,8 +26,10 @@ export default function OnlineGamePage({ params }) {
   const [opponent, setOpponent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [resultSaved, setResultSaved] = useState(false);
+  const [opponentDisconnected, setOpponentDisconnected] = useState(false);
   const chatEndRef = useRef(null);
   const processedMessageIds = useRef(new Set());
+  const resultSavedRef = useRef(false);
 
   useEffect(() => {
     if (!gameId || !session || !pusherClient) return;
@@ -73,38 +75,58 @@ export default function OnlineGamePage({ params }) {
       toast.info(`${data.opponent.name} has joined the game!`);
     });
 
+    channel.bind("player-disconnected", (data) => {
+      setOpponentDisconnected(true);
+      toast.warning(`${data.name} disconnected from the game.`, {
+        duration: 6000,
+      });
+    });
+
     return () => {
       pusherClient.unsubscribe(`game-${gameId}`);
+      // Reset own status to Online when leaving the game room
+      fetch("/api/user/heartbeat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "Online" }),
+      }).catch(() => {});
     };
   }, [gameId, session]);
 
+  // Reset own status to Online (called on game-over and unmount)
+  const resetStatusToOnline = useCallback(() => {
+    fetch("/api/user/heartbeat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "Online" }),
+    }).catch(() => {});
+  }, []);
+
   useEffect(() => {
-    if (game.isGameOver() && !resultSaved && playerColor !== "spectator") {
-      saveResult();
-    }
-  }, [game]);
+    if (game.isGameOver() && !resultSavedRef.current && playerColor && playerColor !== "spectator") {
+      resultSavedRef.current = true;
 
-  const saveResult = async () => {
-    let result = "Draw";
-    if (game.isCheckmate()) {
-      result = game.turn() === playerColor ? "Lost" : "Won";
-    }
+      let result = "Draw";
+      if (game.isCheckmate()) {
+        result = game.turn() === playerColor ? "Lost" : "Won";
+      }
 
-    try {
-      await fetch("/api/game/save-result", {
+      fetch("/api/game/save-result", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           opponentName: opponent?.name || "Anonymous",
           result,
-          type: "online"
+          type: "online",
         }),
-      });
-      setResultSaved(true);
-    } catch (e) {
-      console.error("Failed to save result", e);
+      })
+        .then(() => setResultSaved(true))
+        .catch((e) => console.error("Failed to save result", e));
+
+      // Flip status back so we appear available in the lobby
+      resetStatusToOnline();
     }
-  };
+  }, [game, playerColor, opponent, resetStatusToOnline]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });

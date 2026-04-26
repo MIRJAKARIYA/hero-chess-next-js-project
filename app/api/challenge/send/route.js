@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { nanoid } from "nanoid";
+import { ObjectId } from "mongodb";
 
 export async function POST(req) {
   try {
@@ -16,25 +18,48 @@ export async function POST(req) {
 
     const { targetUserId } = await req.json();
 
-    // Check if target is available
     const client = await clientPromise;
     const db = client.db();
-    const targetUser = await db.collection("user").findOne({ id: targetUserId });
-    
+
+    // Check if target is available
+    const targetUser = await db.collection("user").findOne({ _id: new ObjectId(targetUserId) });
     if (targetUser?.status === "Playing") {
       return NextResponse.json({ error: "Player is currently in a game" }, { status: 400 });
     }
 
-    // Trigger pusher notification to target user
+    // Check if there's already a pending challenge from this challenger to this target
+    const existingChallenge = await db.collection("pending_challenges").findOne({
+      challengerId: session.user.id,
+      targetUserId,
+    });
+    if (existingChallenge) {
+      return NextResponse.json({ error: "Challenge already sent" }, { status: 400 });
+    }
+
+    // Generate one authoritative gameId and persist the pending challenge
+    const gameId = nanoid();
+    const expiresAt = new Date(Date.now() + 30 * 1000); // 30-second TTL
+
+    await db.collection("pending_challenges").insertOne({
+      challengerId: session.user.id,
+      challengerName: session.user.name,
+      targetUserId,
+      gameId,
+      expiresAt,
+      createdAt: new Date(),
+    });
+
+    // Trigger pusher notification to target user (include gameId)
     await pusherServer.trigger(`user-${targetUserId}`, "challenge", {
       challenger: {
         id: session.user.id,
         name: session.user.name,
       },
-      gameId: `game-${Math.random().toString(36).substring(7)}`,
+      gameId,
+      expiresAt: expiresAt.toISOString(),
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, gameId });
   } catch (error) {
     console.error("Challenge error:", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
