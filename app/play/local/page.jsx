@@ -43,7 +43,7 @@ export default function LocalPlayPage() {
   const turn = game.turn();
 
   return (
-    <div className="h-screen p-4 md:p-6 flex flex-col items-center justify-center gap-6 bg-background relative overflow-hidden">
+    <div className="h-[100dvh] p-4 md:p-6 flex flex-col items-center justify-center gap-6 bg-background relative overflow-y-auto overflow-x-hidden">
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-accent to-secondary" />
 
       <div className="flex flex-col gap-4 w-full max-w-[800px] z-10">

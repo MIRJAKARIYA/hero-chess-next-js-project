@@ -307,7 +307,7 @@ export default function OnlineGamePage({ params }) {
   }
 
   return (
-    <div className="h-screen bg-background flex flex-col lg:flex-row p-4 md:p-6 gap-6 overflow-hidden">
+    <div className="h-[100dvh] bg-background flex flex-col lg:flex-row p-4 md:p-6 gap-6 overflow-y-auto overflow-x-hidden">
       {/* Game Section */}
       <div className="flex-1 flex flex-col items-center justify-center gap-4">
         {/* Opponent Info */}
